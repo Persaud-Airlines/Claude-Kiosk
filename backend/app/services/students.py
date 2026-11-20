@@ -58,15 +58,16 @@ class RosterMatch:
 async def find_student(
     db: AsyncSession, school_id: uuid.UUID, first: str, last: str, student_number: str | None = None
 ) -> Student | None:
+    norm = normalize_name(first, last)
     if student_number:
         st = (
             await db.execute(
                 select(Student).where(Student.school_id == school_id, Student.student_number == student_number)
             )
         ).scalar_one_or_none()
-        if st:
+        # An OCR-misread digit must never attribute a card to a different student: the printed name has to agree.
+        if st and difflib.SequenceMatcher(None, st.normalized_name, norm).ratio() >= 0.75:
             return st
-    norm = normalize_name(first, last)
     return (
         await db.execute(
             select(Student)
@@ -91,6 +92,14 @@ async def resolve_or_create_student(
         if not st.is_active:
             st.is_active = True
         return st
+    if student_number:
+        taken = (
+            await db.execute(
+                select(Student.id).where(Student.school_id == school_id, Student.student_number == student_number)
+            )
+        ).first()
+        if taken:  # number already belongs to someone else (likely an OCR misread): don't copy it
+            student_number = None
     st = Student(
         school_id=school_id,
         first_name=first_c,

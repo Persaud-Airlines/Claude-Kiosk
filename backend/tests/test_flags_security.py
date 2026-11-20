@@ -236,3 +236,20 @@ def test_posix_tz():
 
     assert posix_tz_for("America/Toronto") == "EST5EDT,M3.2.0,M11.1.0"
     assert posix_tz_for("America/Regina") == "CST6"
+
+
+def test_student_number_requires_matching_name(client, school):
+    """A card whose number belongs to someone else (OCR misread) must resolve by name, not number."""
+    ph = school["principal"]
+    client.post("/api/v1/students", headers=ph, json={"first_name": "Number", "last_name": "Owner", "student_number": "555000111"})
+    import asyncio
+
+    from app.core.database import get_sessionmaker
+    from app.services.students import find_student
+
+    async def run():
+        async with get_sessionmaker()() as db:
+            import uuid as _u
+            return await find_student(db, _u.UUID(school["id"]), "Someone", "Else", "555000111")
+
+    assert asyncio.run(run()) is None

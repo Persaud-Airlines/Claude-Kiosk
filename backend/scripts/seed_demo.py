@@ -29,7 +29,7 @@ ROSTER = [
 
 
 async def main() -> None:
-    run_migrations()
+    await asyncio.to_thread(run_migrations)
     async with get_sessionmaker()() as db:
         if (await db.execute(select(School).where(School.name == "Lakeview Secondary School"))).scalar_one_or_none():
             print("Demo school already exists.")
