@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+backend/.env
+backend/*.db
+backend/*.db-*
+backend/data/
+# Node
+node_modules/
+frontend/dist/
+# PlatformIO / ESP-IDF
+firmware/.pio/
+firmware/managed_components/
+firmware/dependencies.lock
+firmware/sdkconfig.*
+!firmware/sdkconfig.defaults
+!firmware/sdkconfig.defaults.prod
+firmware/build/
+firmware/main/secrets.h
+# OS
+.DS_Store

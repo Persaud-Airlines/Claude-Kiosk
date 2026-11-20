@@ -1,0 +1,6 @@
+# Optional higher-accuracy OCR engines (large downloads). OCR_ENGINE=auto picks the best installed one.
+# EasyOCR (PyTorch, CPU works fine on Apple Silicon):
+easyocr>=1.7
+# PaddleOCR (best accuracy on printed cards; Apple Silicon: pip install paddlepaddle first):
+# paddlepaddle>=2.6
+# paddleocr>=2.7,<3
