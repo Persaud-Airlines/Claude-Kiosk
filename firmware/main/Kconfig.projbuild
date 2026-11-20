@@ -1,0 +1,44 @@
+menu "DE-TECH-TIVE Kiosk"
+
+    config DT_DEFAULT_HOST_URL
+        string "Default Master/Host server URL"
+        default "https://kiosk.example-school.org"
+        help
+            Pre-filled host URL in the setup wizard (editable via the gear icon on the Wi-Fi step).
+
+    choice DT_CAMERA_SOURCE
+        prompt "Camera provider"
+        default DT_CAMERA_UVC
+        config DT_CAMERA_UVC
+            bool "USB UVC webcam (OTG port)"
+        config DT_CAMERA_MOCK
+            bool "Mock frame injector (bench testing, no camera)"
+    endchoice
+
+    config DT_UVC_WIDTH
+        int "UVC frame width"
+        default 640
+    config DT_UVC_HEIGHT
+        int "UVC frame height"
+        default 480
+    config DT_UVC_FPS
+        int "UVC frame rate"
+        default 15
+
+    config DT_USB_SEL_LEVEL
+        int "CH422G EXIO5 (USB_SEL) level that routes GPIO19/20 to the USB-OTG connector"
+        range 0 1
+        default 0
+        help
+            The Waveshare board multiplexes USB and CAN on GPIO19/20 through EXIO5 of the CH422G
+            expander. If the webcam never enumerates, flip this value.
+
+    config DT_SCAN_MAX_FPS
+        int "Max card frames uploaded per second during scan"
+        default 3
+
+    config DT_OFFLINE_QUEUE_MAX
+        int "Max events held in the offline queue"
+        default 300
+
+endmenu

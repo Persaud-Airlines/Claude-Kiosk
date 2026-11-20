@@ -340,9 +340,10 @@ async def submit_batch(
 ):
     """Offline-queue flush: events are replayed in original chronological order, idempotently."""
     device_id = device.id
-    ordered = sorted(body.events, key=lambda e: as_utc(e.client_timestamp_utc) if e.client_timestamp_utc else utcnow())
-    results = []
-    for ev in ordered:
+    indexed = list(enumerate(body.events))
+    indexed.sort(key=lambda p: as_utc(p[1].client_timestamp_utc) if p[1].client_timestamp_utc else utcnow())
+    results: list[KioskEventResult | None] = [None] * len(indexed)
+    for idx, ev in indexed:  # replay chronologically ...
         device = await db.get(KioskDevice, device_id)
-        results.append(await _submit(db, device, ev))
-    return results
+        results[idx] = await _submit(db, device, ev)
+    return results  # ... but answer in request order so the kiosk can match results to queue slots

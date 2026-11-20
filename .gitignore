@@ -18,7 +18,11 @@ firmware/dependencies.lock
 firmware/sdkconfig.*
 !firmware/sdkconfig.defaults
 !firmware/sdkconfig.defaults.prod
+!firmware/sdkconfig.defaults.mockcam
 firmware/build/
 firmware/main/secrets.h
 # OS
 .DS_Store
+build-sim/
+backend/backups/
+backend/logs/

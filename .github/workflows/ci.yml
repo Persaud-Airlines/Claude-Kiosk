@@ -1,0 +1,65 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  backend-postgres:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: detechtive, POSTGRES_PASSWORD: detechtive, POSTGRES_DB: detechtive }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt
+      - name: Alembic migrations apply cleanly on PostgreSQL
+        env: { USE_SQLITE: "false", DATABASE_URL: "postgresql+asyncpg://detechtive:detechtive@localhost:5432/detechtive" }
+        run: python -m alembic upgrade head
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm ci
+      - run: npm run build
+
+  firmware:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: firmware } }
+    strategy:
+      matrix: { env: [kiosk, kiosk-mock-camera] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install platformio
+      - run: pio run -e ${{ matrix.env }}
+
+  kiosk-ui-simulator:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S firmware/sim -B build-sim && cmake --build build-sim -j
+      - run: mkdir -p sim-out && ./build-sim/kiosk_sim sim-out
+      - uses: actions/upload-artifact@v4
+        with: { name: kiosk-screens, path: sim-out }

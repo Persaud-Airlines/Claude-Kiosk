@@ -1,0 +1,16 @@
+# Hardened production profile — layered on top of sdkconfig.defaults.
+# Flash encryption (RELEASE mode) protects firmware + all encrypted partitions at rest.
+CONFIG_SECURE_FLASH_ENC_ENABLED=y
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+CONFIG_SECURE_DISABLE_ROM_DL_MODE=n
+CONFIG_SECURE_ENABLE_SECURE_ROM_DL_MODE=y
+# Encrypted NVS: device token, Wi-Fi password and the offline event queue are encrypted at rest.
+CONFIG_NVS_ENCRYPTION=y
+CONFIG_NVS_SEC_KEY_PROTECT_USING_FLASH_ENC=y
+# No serial console in the classroom
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y

@@ -144,7 +144,7 @@ def test_offline_batch_replay_is_idempotent_and_keeps_timestamps(client, school)
     results = r.json()
     assert all(x["accepted"] for x in results)
     assert not any(x["duplicate"] for x in results)
-    first_time = datetime.fromisoformat(results[0]["recorded_at_utc"].replace("Z", "+00:00"))
+    first_time = datetime.fromisoformat(results[1]["recorded_at_utc"].replace("Z", "+00:00"))  # request order
     assert abs((first_time - t0).total_seconds()) < 1  # original timestamp preserved, replayed in order
 
     again = client.post("/api/v1/kiosk/events/batch", headers=kh(k), json={"events": events}).json()

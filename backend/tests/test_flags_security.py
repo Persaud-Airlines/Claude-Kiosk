@@ -88,7 +88,7 @@ def test_exemption_notes_encrypted_at_rest(client, school):
         async with get_sessionmaker()() as db:
             return (await db.execute(text("SELECT reason_notes FROM student_flag_exemptions"))).scalars().all()
 
-    values = asyncio.run(raw())
+    values = client.portal.call(raw)
     assert values and all("Very private detail" not in (v or "") for v in values)
 
 
@@ -105,7 +105,7 @@ def test_extended_duration_flag(client, school):
     assert r.status_code == 200
     out = client.get(f"/api/v1/schools/{school['id']}/out-now", headers=school["teacher"]).json()
     assert any(o["first_name"] == "Dana" and o["overdue"] for o in out)
-    asyncio.run(run_scan_once())
+    client.portal.call(run_scan_once)
     fl = flags_for(client, school["teacher"], school["id"], "Dana Overdue")
     assert [f["flag_type"] for f in fl] == ["EXTENDED_DURATION"]
 
@@ -252,4 +252,4 @@ def test_student_number_requires_matching_name(client, school):
             import uuid as _u
             return await find_student(db, _u.UUID(school["id"]), "Someone", "Else", "555000111")
 
-    assert asyncio.run(run()) is None
+    assert client.portal.call(run) is None

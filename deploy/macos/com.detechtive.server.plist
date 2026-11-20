@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- launchd agent: keeps the DE-TECH-TIVE API + portal running and restarts it on crash / reboot. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.detechtive.server</string>
+  <key>WorkingDirectory</key><string>__ROOT__/backend</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__ROOT__/backend/.venv/bin/uvicorn</string>
+    <string>app.main:app</string>
+    <string>--host</string><string>0.0.0.0</string>
+    <string>--port</string><string>8000</string>
+    <string>--workers</string><string>1</string>
+    <string>--proxy-headers</string>
+    <string>--forwarded-allow-ips</string><string>127.0.0.1</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>5</integer>
+  <key>StandardOutPath</key><string>__ROOT__/backend/logs/server.log</string>
+  <key>StandardErrorPath</key><string>__ROOT__/backend/logs/server.err.log</string>
+</dict>
+</plist>

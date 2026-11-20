@@ -1,0 +1,19 @@
+# Cloudflare Tunnel: expose the Mac Mini to kiosks and staff across a school board WITHOUT opening
+# inbound firewall ports. Kiosks then validate TLS with the public CA bundle built into the firmware.
+#   brew install cloudflared
+#   cloudflared tunnel login
+#   cloudflared tunnel create detechtive
+#   cloudflared tunnel route dns detechtive kiosk.your-board.org
+#   cp deploy/cloudflared/config.yml.example ~/.cloudflared/config.yml   (edit the tunnel id + hostname)
+#   sudo cloudflared service install
+# Then in backend/.env:  PUBLIC_BASE_URL / FRONTEND_BASE_URL = https://kiosk.your-board.org,
+#                        TRUST_PROXY_HEADERS=true, SECURE_COOKIES=true, CORS_ORIGINS=https://kiosk.your-board.org
+tunnel: <TUNNEL-UUID>
+credentials-file: /Users/<you>/.cloudflared/<TUNNEL-UUID>.json
+ingress:
+  - hostname: kiosk.your-board.org
+    service: http://127.0.0.1:8000
+    originRequest:
+      connectTimeout: 10s
+      noTLSVerify: false
+  - service: http_status:404

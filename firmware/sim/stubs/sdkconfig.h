@@ -1,0 +1,9 @@
+#pragma once
+#define CONFIG_DT_DEFAULT_HOST_URL "https://kiosk.example-school.org"
+#define CONFIG_DT_CAMERA_MOCK 1
+#define CONFIG_DT_UVC_WIDTH 640
+#define CONFIG_DT_UVC_HEIGHT 480
+#define CONFIG_DT_UVC_FPS 15
+#define CONFIG_DT_USB_SEL_LEVEL 0
+#define CONFIG_DT_SCAN_MAX_FPS 3
+#define CONFIG_DT_OFFLINE_QUEUE_MAX 300

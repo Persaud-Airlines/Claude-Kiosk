@@ -28,6 +28,10 @@ os.environ.update(
     }
 )
 
+# Run the suite against PostgreSQL with: TEST_DATABASE_URL=postgresql+asyncpg://... pytest
+if os.environ.get("TEST_DATABASE_URL"):
+    os.environ.update({"USE_SQLITE": "false", "DATABASE_URL": os.environ["TEST_DATABASE_URL"]})
+
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.core.rate_limit import limiter  # noqa: E402
