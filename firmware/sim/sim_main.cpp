@@ -7,6 +7,7 @@
 //
 //   cmake -S firmware/sim -B build-sim && cmake --build build-sim -j && ./build-sim/kiosk_sim out/
 #include <chrono>
+#include <iterator>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -29,7 +30,17 @@
 #include "wifi_manager.hpp"
 #include "workers.hpp"
 
+// Portable time-zone and calendar helpers (POSIX setenv/localtime_r do not exist on MSVC).
 static uint32_t g_tick = 0;
+#ifdef _WIN32
+static void set_tz(const char *v) { _putenv_s("TZ", v); _tzset(); }
+static struct tm local_tm(time_t t) { struct tm r; localtime_s(&r, &t); return r; }
+static struct tm utc_tm(time_t t) { struct tm r; gmtime_s(&r, &t); return r; }
+#else
+static void set_tz(const char *v) { setenv("TZ", v, 1); tzset(); }
+static struct tm local_tm(time_t t) { struct tm r; localtime_r(&t, &r); return r; }
+static struct tm utc_tm(time_t t) { struct tm r; gmtime_r(&t, &r); return r; }
+#endif
 extern "C" uint32_t sim_tick_ms(void) { return g_tick; }
 
 namespace dt {
@@ -89,16 +100,11 @@ static const time_t kSimEpoch = 1795189262;  // 2026-11-20 15:01:02 UTC (fixed f
 static time_t simNow() { return kSimEpoch + g_tick / 1000; }
 void TimeSync::start() {}
 bool TimeSync::synced() { return true; }
-void TimeSync::setPosixTz(const std::string &p)
-{
-    setenv("TZ", p.empty() ? "UTC0" : p.c_str(), 1);
-    tzset();
-}
+void TimeSync::setPosixTz(const std::string &p) { set_tz(p.empty() ? "UTC0" : p.c_str()); }
 std::string TimeSync::localClock()
 {
     time_t n = simNow();
-    struct tm t;
-    localtime_r(&n, &t);
+    struct tm t = local_tm(n);
     char b[16];
     strftime(b, sizeof b, "%I:%M:%S %p", &t);
     return b[0] == '0' ? b + 1 : b;
@@ -106,8 +112,7 @@ std::string TimeSync::localClock()
 std::string TimeSync::utcClock()
 {
     time_t n = simNow();
-    struct tm t;
-    gmtime_r(&n, &t);
+    struct tm t = utc_tm(n);
     char b[16];
     strftime(b, sizeof b, "%H:%M:%S", &t);
     return b;

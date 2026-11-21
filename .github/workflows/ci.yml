@@ -63,3 +63,52 @@ jobs:
       - run: mkdir -p sim-out && ./build-sim/kiosk_sim sim-out
       - uses: actions/upload-artifact@v4
         with: { name: kiosk-screens, path: sim-out }
+
+  # ---- Windows 10/11 Pro (the production platform) ----
+  backend-windows:
+    runs-on: windows-2022
+    defaults: { run: { working-directory: backend, shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install Tesseract OCR
+        working-directory: .
+        shell: pwsh
+        run: choco install tesseract --yes --no-progress
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Test suite on Windows (SQLite)
+        run: python -m pytest -q
+
+  windows-scripts:
+    runs-on: windows-2022
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse every PowerShell script
+        run: |
+          $failed = 0
+          Get-ChildItem -Recurse -Filter *.ps1 -Path deploy, backend | ForEach-Object {
+            $tokens = $null; $errs = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errs) | Out-Null
+            foreach ($e in $errs) { Write-Host "$($_.FullName):$($e.Extent.StartLineNumber): $($e.Message)"; $failed++ }
+          }
+          if ($failed -gt 0) { exit 1 }
+          Write-Host "All PowerShell scripts parse cleanly"
+
+  kiosk-simulator-windows:
+    runs-on: windows-2022
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the kiosk UI simulator with MSVC
+        run: |
+          cmake -S firmware/sim -B build-sim
+          cmake --build build-sim --config Release
+      - name: Render every kiosk screen
+        run: |
+          New-Item -ItemType Directory -Force sim-out | Out-Null
+          & .\build-sim\Release\kiosk_sim.exe sim-out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with: { name: kiosk-screens-windows, path: sim-out }

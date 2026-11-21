@@ -26,8 +26,8 @@ target_metadata = Base.metadata
 
 def _url() -> str:
     s = get_settings()
-    if s.use_sqlite and s.sqlite_path != ":memory:" and os.path.dirname(s.sqlite_path):
-        os.makedirs(os.path.dirname(s.sqlite_path), exist_ok=True)
+    if s.use_sqlite:
+        s.sqlite_file.parent.mkdir(parents=True, exist_ok=True)
     return s.effective_database_url
 
 

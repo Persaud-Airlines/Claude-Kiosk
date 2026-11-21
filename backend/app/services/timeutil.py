@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
 from functools import lru_cache
+import os
 from importlib import resources
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -34,14 +35,22 @@ def is_valid_timezone(name: str) -> bool:
 def posix_tz_for(iana: str) -> str:
     """Extract the POSIX TZ footer from the TZif v2+ file backing an IANA zone."""
     data: bytes | None = None
+    parts = [p for p in iana.split("/") if p and p not in (".", "..")]
+    # 1) The bundled tzdata package: works on every OS, including Windows (which has no zone database).
     try:
-        parts = iana.split("/")
-        pkg = ".".join(["tzdata", "zoneinfo", *parts[:-1]])
-        data = resources.files(pkg).joinpath(parts[-1]).read_bytes()
-    except (ModuleNotFoundError, FileNotFoundError, OSError, ValueError):
-        for base in ("/usr/share/zoneinfo", "/var/db/timezone/zoneinfo"):
+        node = resources.files("tzdata") / "zoneinfo"
+        for part in parts:
+            node = node / part
+        data = node.read_bytes()
+    except (ModuleNotFoundError, FileNotFoundError, OSError, TypeError, ValueError):
+        data = None
+    # 2) The operating system's zone database (macOS / Linux) as a secondary source.
+    if data is None:
+        for base in (os.environ.get("TZDIR"), "/usr/share/zoneinfo", "/var/db/timezone/zoneinfo"):
+            if not base:
+                continue
             try:
-                with open(f"{base}/{iana}", "rb") as fh:
+                with open(os.path.join(base, *parts), "rb") as fh:
                     data = fh.read()
                 break
             except OSError:

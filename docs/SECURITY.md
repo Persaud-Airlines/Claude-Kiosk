@@ -28,6 +28,11 @@
 * **Retention:** events and flags are purged after `DATA_RETENTION_DAYS` (default 400); scan sessions after 24 h.
 * **Data minimisation:** no student photos, no images on disk (`OCR_DEBUG_DIR` is refused in production), no PII in URLs (WebSocket auth uses the first message, not a query string).
 
+## Windows host
+* Student data is protected at rest by **BitLocker** (Windows 10/11 Pro). `install.ps1` checks it and warns if it is off.
+* Secret files (`backend\.env`, `backend\data\INITIAL_ADMIN_PASSWORD.txt`, `backend\backups`) are restricted with `icacls` to SYSTEM, Administrators and the installing user. This replaces the POSIX `chmod 600` used on macOS/Linux.
+* The server runs as **NT AUTHORITY\SYSTEM** from a scheduled task, bound to `127.0.0.1` and reachable only through the Cloudflare Tunnel. No inbound firewall ports are opened.
+
 ## Transport & browser hardening
 `Strict-Transport-Security` (production), CSP (`default-src 'self'`, `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cache-Control: no-store` on all API responses, a strict CORS allow-list, and OpenAPI docs disabled in production. The server **refuses to start in production** with default secrets, insecure cookies or OCR debug mode.
 
@@ -35,7 +40,7 @@
 Billing status is never checked on kiosk endpoints, the locator or the roll-call (`test_stripe_webhook_updates_status_without_blocking_kiosks`). Kiosks keep working offline and replay events later. Any staff member can **start** a lockdown roll-call; only admins can **end** one.
 
 ## Scaling out / known limits
-* The rate limiter and realtime hub are **in-process**, so run one uvicorn worker (the launchd agent does). To run several workers or hosts, back `SlidingWindowLimiter` and `RealtimeHub` with Redis (same interfaces) and move the flag-engine loop to a single scheduler.
+* The rate limiter and realtime hub are **in-process**, so run one uvicorn worker (the scheduled task does). To run several workers or hosts, back `SlidingWindowLimiter` and `RealtimeHub` with Redis (same interfaces) and move the flag-engine loop to a single scheduler.
 * Manual name entry on kiosks (the fallback when the camera or host is down) is inherently spoofable. Such events are tagged `MANUAL` in every view so staff can tell them apart.
 * OCR can misread a name. That is why the student must **confirm** it on the kiosk, roster matching corrects near-misses, and a student number only matches when the printed name also agrees (`test_student_number_requires_matching_name`).
 

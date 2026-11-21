@@ -1,7 +1,6 @@
 """Async SQLAlchemy engine/session factory (PostgreSQL or SQLite)."""
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncIterator
 
 from sqlalchemy import event
@@ -35,9 +34,8 @@ def get_engine() -> AsyncEngine:
         s = get_settings()
         url = s.effective_database_url
         if url.startswith("sqlite"):
-            path = s.sqlite_path
-            if path not in (":memory:",) and os.path.dirname(path):
-                os.makedirs(os.path.dirname(path), exist_ok=True)
+            db_file = s.sqlite_file
+            db_file.parent.mkdir(parents=True, exist_ok=True)
             _engine = create_async_engine(url, future=True)
             _configure_sqlite(_engine)
         else:

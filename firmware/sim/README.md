@@ -4,12 +4,12 @@ Builds the **real** firmware UI (`main/ui/*.cpp`, `main/fonts/*.c`) against LVGL
 
 ```bash
 cmake -S firmware/sim -B build-sim && cmake --build build-sim -j
-python3 - <<'PY'   # optional: live-preview frame from the mock card
-import cv2, numpy as np
-img = cv2.resize(cv2.imread('firmware/main/assets/mock_card.jpg'), (320, 240))
-rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.uint16)
-(((rgb[...,0] >> 3) << 11) | ((rgb[...,1] >> 2) << 5) | (rgb[...,2] >> 3)).astype('<u2').tofile('frame.rgb565')
-PY
+# Optional: a live-preview frame from the mock card (needs Python with opencv-python-headless and numpy)
+python firmware/sim/make_preview_frame.py frame.rgb565
+# Windows: build with Visual Studio (the default generator), then run:
+#   cmake --build build-sim --config Release
+#   mkdir out; .\build-sim\Release\kiosk_sim.exe out frame.rgb565
+# macOS / Linux:
 mkdir -p out && ./build-sim/kiosk_sim out frame.rgb565   # writes out/*.ppm
 ```
 LVGL is fetched with CMake FetchContent; pass `-DFETCHCONTENT_SOURCE_DIR_LVGL=/path/to/lvgl` to build offline.

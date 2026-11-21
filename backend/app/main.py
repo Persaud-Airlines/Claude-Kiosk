@@ -15,7 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, select
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .core.config import get_settings, validate_production_settings
+from .core.config import BACKEND_DIR, get_settings, validate_production_settings
+from .core.fsutil import restrict_to_owner
 from .core.database import get_engine, get_sessionmaker
 from .core.security import hash_password
 from .models import Role, User
@@ -51,12 +52,13 @@ async def bootstrap_supersudo() -> None:
                     role=Role.SUPERSUDO, password_hash=hash_password(password)))
         await db.commit()
         if generated:
-            data_dir = Path(os.path.dirname(s.sqlite_path) or ".")
+            data_dir = s.sqlite_file.parent if s.use_sqlite else BACKEND_DIR / "data"
             data_dir.mkdir(parents=True, exist_ok=True)
             path = data_dir / "INITIAL_ADMIN_PASSWORD.txt"
             path.write_text(f"email: {s.bootstrap_supersudo_email}\npassword: {password}\n"
-                            "Delete this file after your first login and change the password.\n")
-            os.chmod(path, 0o600)
+                            "Delete this file after your first login and change the password.\n",
+                            encoding="utf-8")
+            restrict_to_owner(path)
             log.warning("Created SUPERSUDO %s; initial password written to %s", s.bootstrap_supersudo_email, path)
         else:
             log.warning("Created SUPERSUDO %s from BOOTSTRAP_SUPERSUDO_PASSWORD", s.bootstrap_supersudo_email)
@@ -95,7 +97,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=s.cors_origins,
+        allow_origins=s.cors_origin_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "X-Device-Token", "X-Device-UID", "X-Pairing-Secret"],

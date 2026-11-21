@@ -102,6 +102,11 @@ class TesseractEngine:
     def __init__(self) -> None:
         import pytesseract
 
+        from ..core.tesseract_path import find_tesseract
+
+        cmd = find_tesseract()
+        if cmd:
+            pytesseract.pytesseract.tesseract_cmd = cmd
         self._pt = pytesseract
         pytesseract.get_tesseract_version()  # raises if binary missing
 

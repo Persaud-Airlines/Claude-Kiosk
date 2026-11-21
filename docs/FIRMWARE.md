@@ -18,6 +18,15 @@ Pin assignments live in `firmware/main/config.h`.
 * Fonts: Montserrat with Latin-1 (EN/FR/ES accents) and Font Awesome 6 icons, pre-generated into `main/fonts/`. Regenerate with `tools/gen_fonts.sh`.
 
 ## Build & flash
+Windows (PowerShell):
+```powershell
+py -m pip install platformio
+cd C:\DeTechtive\firmware
+pio run -e kiosk-mock-camera -t upload -t monitor
+```
+The board's COM port is found automatically. If it isn't detected, install the USB driver for the board's UART chip (CH343 / CH340, from the Waveshare or WCH site) and check Device Manager > Ports (COM & LPT).
+
+macOS / Linux:
 ```bash
 pip install platformio
 cd firmware
@@ -63,7 +72,7 @@ ui/i18n.cpp            EN / FR / ES strings
 ```
 
 ## Desktop simulator
-`firmware/sim` compiles the real `ui/` code, fonts and LVGL on Linux or macOS, with the ESP-IDF layer faked. It plays a scripted touch scenario and writes a screenshot of every state:
+`firmware/sim` compiles the real `ui/` code, fonts and LVGL on Windows (Visual Studio), macOS and Linux, with the ESP-IDF layer faked. It plays a scripted touch scenario and writes a screenshot of every state:
 ```bash
 cmake -S firmware/sim -B build-sim && cmake --build build-sim -j && ./build-sim/kiosk_sim out/
 ```

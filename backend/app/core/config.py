@@ -2,27 +2,34 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Resolved once, so the server behaves the same no matter which folder it is started from
+# (Windows services and scheduled tasks usually start in C:\Windows\System32).
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=BACKEND_DIR / ".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- General -------------------------------------------------------------------
     app_name: str = "DE-TECH-TIVE TECHNOLOGIES Inc"
     environment: Literal["development", "production", "test"] = "development"
     public_base_url: str = "http://localhost:8000"  # used in pairing QR codes
     frontend_base_url: str = "http://localhost:5173"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    # Plain text on purpose: pydantic-settings would otherwise require JSON for list values from .env.
+    # Use a comma-separated list, e.g. CORS_ORIGINS=https://edu.detechtive.ca,http://localhost:5173
+    cors_origins: str = "http://localhost:5173"
     serve_frontend_dist: str | None = "../frontend/dist"  # serve built SPA if it exists
 
     # --- Database --------------------------------------------------------------------
     # Set USE_SQLITE=true for the 60-second Mac Mini quickstart.
     use_sqlite: bool = True
-    sqlite_path: str = "./data/detechtive.db"
+    sqlite_path: str = "data/detechtive.db"  # relative paths are resolved against the backend folder
     database_url: str = "postgresql+asyncpg://detechtive:detechtive@localhost:5432/detechtive"
 
     # --- Security ----------------------------------------------------------------------
@@ -50,6 +57,8 @@ class Settings(BaseSettings):
     ocr_engine: Literal["auto", "paddle", "easyocr", "tesseract", "none"] = "auto"
     ocr_min_confidence: float = 0.60
     ocr_debug_dir: str | None = None  # never enable in production: stores card images
+    # Full path to tesseract.exe / tesseract. Blank = auto-detect (PATH, then the default Windows install folder).
+    tesseract_cmd: str | None = None
 
     # --- Flagging engine -------------------------------------------------------------
     flag_scan_interval_seconds: int = 60
@@ -65,21 +74,20 @@ class Settings(BaseSettings):
     bootstrap_supersudo_email: str | None = "admin@detechtive.local"
     bootstrap_supersudo_password: str | None = None
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def _split_origins(cls, v):
-        if isinstance(v, str):
-            if v.strip().startswith("["):
-                import json
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
-                return json.loads(v)
-            return [s.strip() for s in v.split(",") if s.strip()]
-        return v
+    @property
+    def sqlite_file(self) -> Path:
+        p = Path(self.sqlite_path)
+        return p if p.is_absolute() else BACKEND_DIR / p
 
     @property
     def effective_database_url(self) -> str:
         if self.use_sqlite:
-            return f"sqlite+aiosqlite:///{self.sqlite_path}"
+            # as_posix() keeps Windows drive letters valid inside the URL (sqlite+aiosqlite:///C:/...)
+            return f"sqlite+aiosqlite:///{self.sqlite_file.as_posix()}"
         return self.database_url
 
     @property

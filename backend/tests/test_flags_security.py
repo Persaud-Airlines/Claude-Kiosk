@@ -73,7 +73,6 @@ def test_medical_exemption_suppresses_flag_and_redacts_for_teachers(client, scho
 
 
 def test_exemption_notes_encrypted_at_rest(client, school):
-    import asyncio
 
     from sqlalchemy import text
 
@@ -93,7 +92,6 @@ def test_exemption_notes_encrypted_at_rest(client, school):
 
 
 def test_extended_duration_flag(client, school):
-    import asyncio
     from datetime import datetime, timedelta, timezone
 
     from app.services.flagging import run_scan_once
@@ -242,7 +240,6 @@ def test_student_number_requires_matching_name(client, school):
     """A card whose number belongs to someone else (OCR misread) must resolve by name, not number."""
     ph = school["principal"]
     client.post("/api/v1/students", headers=ph, json={"first_name": "Number", "last_name": "Owner", "student_number": "555000111"})
-    import asyncio
 
     from app.core.database import get_sessionmaker
     from app.services.students import find_student

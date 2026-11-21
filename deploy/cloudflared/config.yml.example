@@ -1,18 +1,19 @@
-# Cloudflare Tunnel: expose the Mac Mini to kiosks and staff across a school board WITHOUT opening
-# inbound firewall ports. Kiosks then validate TLS with the public CA bundle built into the firmware.
-#   brew install cloudflared
-#   cloudflared tunnel login
-#   cloudflared tunnel create detechtive
-#   cloudflared tunnel route dns detechtive kiosk.your-board.org
-#   cp deploy/cloudflared/config.yml.example ~/.cloudflared/config.yml   (edit the tunnel id + hostname)
-#   sudo cloudflared service install
-# Then in backend/.env:  PUBLIC_BASE_URL / FRONTEND_BASE_URL = https://kiosk.your-board.org,
-#                        TRUST_PROXY_HEADERS=true, SECURE_COOKIES=true, CORS_ORIGINS=https://kiosk.your-board.org
+# OPTIONAL. Cloudflare Tunnel is normally set up in the Zero Trust dashboard (Networks > Tunnels) and installed
+# with a token by deploy\windows\install.ps1. Use this file only if you manage the tunnel locally.
+#
+#   1. Install cloudflared (cloudflared-windows-amd64.msi from github.com/cloudflare/cloudflared/releases)
+#   2. cloudflared tunnel login
+#   3. cloudflared tunnel create detechtive
+#   4. Copy this file to C:\Users\<you>\.cloudflared\config.yml and fill in the tunnel id and hostname
+#   5. cloudflared tunnel route dns detechtive edu.detechtive.ca
+#   6. cloudflared service install        (installs the Windows service that runs the tunnel)
+#
+# The route for edu.detechtive.ca must point at http://localhost:8000 (the DE-TECH-TIVE server).
 tunnel: <TUNNEL-UUID>
-credentials-file: /Users/<you>/.cloudflared/<TUNNEL-UUID>.json
+credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-UUID>.json
 ingress:
-  - hostname: kiosk.your-board.org
-    service: http://127.0.0.1:8000
+  - hostname: edu.detechtive.ca
+    service: http://localhost:8000
     originRequest:
       connectTimeout: 10s
       noTLSVerify: false

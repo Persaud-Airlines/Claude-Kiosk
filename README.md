@@ -20,7 +20,7 @@ The kiosk screenshots are rendered from the **real firmware UI code** by the des
 ## Architecture
 
 ```
- Classroom (Slave)                                   Master / Host (Mac Mini, macOS)
+ Classroom (Slave)                                   Master / Host (Windows 10/11 Pro PC)
 ┌───────────────────────────────┐   HTTPS + X-Device-Token   ┌───────────────────────────────────────────┐
 │ Waveshare ESP32-S3-Touch-LCD-7 │ ─────────────────────────▶ │ FastAPI (Python 3.11+)                    │
 │  • LVGL 8.3 UI, state machine  │  /kiosk/scan-card (JPEG)   │  • OpenCV card detect + perspective warp   │
@@ -40,21 +40,23 @@ The kiosk screenshots are rendered from the **real firmware UI code** by the des
 backend/    FastAPI API, OCR pipeline, flag engine, Stripe, Alembic migrations, pytest suite
 frontend/   React 18 + Vite + Tailwind staff portal (served by the backend in production)
 firmware/   ESP-IDF 5.3 + LVGL 8.3 kiosk firmware (PlatformIO); firmware/sim = desktop UI simulator
-deploy/     macOS installer + launchd agent, backups, Cloudflare Tunnel, Postgres compose file
+deploy/     Windows installer, scheduled tasks, backups, Cloudflare Tunnel, Postgres compose file
 docs/       DEPLOYMENT · FIRMWARE · SECURITY · API · TESTING · screenshots
 ```
 
-## 60-second quickstart (Mac Mini, SQLite)
+## Quickstart (Windows 10/11 Pro)
 
-```bash
-brew install python@3.12 node@20 tesseract
-cd backend && ./run.sh                       # creates .venv, .env, runs migrations, starts :8000
-# first SUPERSUDO password -> backend/data/INITIAL_ADMIN_PASSWORD.txt
-.venv/bin/python scripts/seed_demo.py         # (2nd terminal, in backend/) optional demo school, staff, roster
-cd ../frontend && npm ci && npm run build    # the backend now serves the portal at http://<mac-ip>:8000
+```powershell
+# As Administrator, after installing Python 3.12 (for all users), Node 20 and Tesseract:
+cd C:\
+git clone -b ccr-40a6b7fc-82qtaf https://github.com/Persaud-Airlines/Claude-Kiosk.git DeTechtive
+cd C:\DeTechtive
+powershell -ExecutionPolicy Bypass -File deploy\windows\install.ps1 -PublicUrl https://edu.detechtive.ca
 ```
 
-For production (PostgreSQL, launchd auto-start, HTTPS through Cloudflare Tunnel, Stripe), see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. To flash the kiosks, see **[docs/FIRMWARE.md](docs/FIRMWARE.md)**.
+Development on the same PC: `cd backend; .\run.ps1` (http://localhost:8000).
+
+For production (the scheduled task, the Cloudflare Tunnel, Stripe and backups), see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. To flash the kiosks, see **[docs/FIRMWARE.md](docs/FIRMWARE.md)**.
 
 ## Kiosk flow
 
