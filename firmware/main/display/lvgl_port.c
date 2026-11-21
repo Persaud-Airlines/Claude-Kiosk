@@ -18,17 +18,12 @@ static SemaphoreHandle_t s_lock;
 static lv_disp_draw_buf_t s_draw_buf;
 static lv_disp_drv_t s_disp_drv;
 static lv_indev_drv_t s_indev_drv;
-static bool s_backlight_on;
 
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *a, lv_color_t *map)
 {
     // RGB panel draw_bitmap copies into the PSRAM frame buffer synchronously.
     esp_lcd_panel_draw_bitmap(board_panel(), a->x1, a->y1, a->x2 + 1, a->y2 + 1, map);
     lv_disp_flush_ready(drv);
-    if (!s_backlight_on && lv_disp_flush_is_last(drv)) {
-        s_backlight_on = true;
-        board_backlight(true);  // turn on only once the first frame is drawn (no white flash)
-    }
 }
 
 static void touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data)

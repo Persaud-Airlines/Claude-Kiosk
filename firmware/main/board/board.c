@@ -46,7 +46,9 @@ static esp_err_t expander_init(void)
     ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(s_bus, &out_cfg, &s_exp_out), TAG, "exp out");
     uint8_t mode = 0x01;  // IO_OE: EXIO0..7 push-pull outputs
     ESP_RETURN_ON_ERROR(i2c_master_transmit(s_exp_mode, &mode, 1, 100), TAG, "CH422G not responding");
-    uint8_t initial = EXIO_TP_RST | EXIO_LCD_RST | EXIO_SD_CS;  // backlight off until first frame
+    // Backlight ON from the first register write: it was previously cleared here and only re-enabled
+    // after the first LVGL flush, which left the panel dark.
+    uint8_t initial = EXIO_TP_RST | EXIO_LCD_RST | EXIO_SD_CS | EXIO_LCD_BL;
     if (CONFIG_DT_USB_SEL_LEVEL) initial |= EXIO_USB_SEL;
     return exio_write(initial);
 }
@@ -168,6 +170,8 @@ esp_err_t board_init(void)
     ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus, &s_bus), TAG, "i2c bus");
     ESP_RETURN_ON_ERROR(expander_init(), TAG, "expander");
     ESP_RETURN_ON_ERROR(lcd_init(), TAG, "lcd");
+    board_backlight(true);
+    ESP_LOGI(TAG, "backlight on");
     if (touch_init() != ESP_OK) ESP_LOGW(TAG, "continuing without touch");
     return ESP_OK;
 }
