@@ -19,6 +19,7 @@ import StudentPage from "./pages/StudentPage";
 import StudentsPage from "./pages/StudentsPage";
 import UsersPage from "./pages/UsersPage";
 import OverviewPage from "./pages/admin/OverviewPage";
+import SchoolPage from "./pages/admin/SchoolPage";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -29,13 +30,15 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 function RequireSchool({ children }: { children: ReactNode }) {
-  const { user, schoolId } = useAuth();
-  if (user?.role === "SUPERSUDO" && !schoolId) return <Navigate to="/admin" replace />;
+  const { user } = useAuth();
+  // The platform operator never opens school pages (students, sign-ins, staff, audit logs).
+  if (user?.role === "SUPERSUDO") return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  if (user?.role === "SUPERSUDO") return <Navigate to="/admin" replace />;
   return isAdminRole(user) ? <>{children}</> : <Navigate to="/" replace />;
 }
 
@@ -58,6 +61,7 @@ export default function App() {
       >
         <Route index element={s(<DashboardPage />)} />
         <Route path="admin" element={<OverviewPage />} />
+        <Route path="admin/schools/:id" element={<SchoolPage />} />
         <Route path="lockdown" element={s(<LockdownPage />)} />
         <Route path="classrooms" element={s(<ClassroomsPage />)} />
         <Route path="classrooms/:id" element={s(<ClassroomPage />)} />

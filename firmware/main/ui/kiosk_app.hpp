@@ -57,6 +57,7 @@ private:
     void buildTopBar();
     void refreshTopBar();
     void showDiagnostics();
+    void showStartOverConfirm();
     void showPinPad(bool factoryReset);
     void closeModal();
     void toast(const char *text, uint32_t color);
@@ -107,7 +108,8 @@ private:
 
     // persistent objects
     lv_obj_t *root_ = nullptr;
-    lv_obj_t *topbar_ = nullptr, *tbSchool_ = nullptr, *tbLocal_ = nullptr, *tbUtc_ = nullptr, *tbDot_ = nullptr,
+    lv_obj_t *topbar_ = nullptr, *tbSchool_ = nullptr, *tbLocal_ = nullptr, *tbUtc_ = nullptr, *tbWifi_ = nullptr,
+             *tbBars_[4] = {nullptr, nullptr, nullptr, nullptr}, *startOverBtn_ = nullptr,
              *tbLockdown_ = nullptr, *tbHotspot_ = nullptr, *tbRoom_ = nullptr;
     lv_obj_t *content_ = nullptr;
     lv_obj_t *modal_ = nullptr;

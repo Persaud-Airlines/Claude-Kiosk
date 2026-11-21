@@ -28,8 +28,10 @@ export default function Layout() {
   const nav = useNavigate();
   const admin = isAdminRole(user);
 
-  const links = [
-    ...(user?.role === "SUPERSUDO" ? [{ to: "/admin", label: "Platform Overview", icon: BarChart3 }] : []),
+  const platformLinks: { to: string; label: string; icon: typeof BarChart3; end?: boolean }[] = [
+    { to: "/admin", label: "Platform Overview", icon: BarChart3, end: true },
+  ];
+  const schoolLinks = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/lockdown", label: "Emergency Locator", icon: ShieldAlert },
     { to: "/classrooms", label: "Classrooms", icon: DoorOpen },
@@ -45,6 +47,7 @@ export default function Layout() {
         ]
       : []),
   ];
+  const links = user?.role === "SUPERSUDO" ? platformLinks : schoolLinks;
 
   const search = (e: FormEvent) => {
     e.preventDefault();

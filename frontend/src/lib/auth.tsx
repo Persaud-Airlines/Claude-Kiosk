@@ -41,13 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reloadSchool = useCallback(async () => {
-    if (!schoolId) {
+    // The platform operator has no school context: school data is never fetched for them.
+    if (!schoolId || user?.role === "SUPERSUDO") {
       setSchool(null);
       return;
     }
     try {
-      const q = user?.role === "SUPERSUDO" ? `?school_id=${schoolId}` : "";
-      setSchool(await api<School>(`/api/v1/schools/current${q}`));
+      setSchool(await api<School>("/api/v1/schools/current"));
     } catch {
       setSchool(null);
     }

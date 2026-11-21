@@ -2,7 +2,7 @@ menu "DE-TECH-TIVE Kiosk"
 
     config DT_DEFAULT_HOST_URL
         string "Default Master/Host server URL"
-        default "https://kiosk.example-school.org"
+        default "https://edu.detechtive.ca"
         help
             Pre-filled host URL in the setup wizard (editable via the gear icon on the Wi-Fi step).
 

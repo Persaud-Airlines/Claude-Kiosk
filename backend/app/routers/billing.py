@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.audit import audit
 from ..core.config import get_settings
 from ..core.database import get_db
-from ..core.deps import get_school_or_404, require_roles, resolve_school_id
+from ..core.deps import get_school_or_404, require_roles, resolve_billing_school_id
 from ..models import Role, School, StripeWebhookEvent, SubscriptionStatus, User
 from ..schemas import CheckoutRequest, UrlResponse
 
@@ -66,7 +66,7 @@ async def create_checkout_session(
 ):
     _stripe_ready()
     s = get_settings()
-    school = await get_school_or_404(db, resolve_school_id(user, body.school_id))
+    school = await get_school_or_404(db, resolve_billing_school_id(user, body.school_id))
     if school.subscription_status in (SubscriptionStatus.active, SubscriptionStatus.trialing) and school.stripe_subscription_id:
         raise HTTPException(status.HTTP_409_CONFLICT, "School already has an active subscription; use the billing portal")
     if not school.stripe_customer_id:
@@ -98,7 +98,7 @@ async def create_portal_session(
 ):
     _stripe_ready()
     s = get_settings()
-    school = await get_school_or_404(db, resolve_school_id(user, body.school_id))
+    school = await get_school_or_404(db, resolve_billing_school_id(user, body.school_id))
     if not school.stripe_customer_id:
         raise HTTPException(status.HTTP_409_CONFLICT, "No Stripe customer yet; start a subscription first")
     portal = stripe.billing_portal.Session.create(customer=school.stripe_customer_id, return_url=f"{s.frontend_base_url}/billing")
@@ -110,7 +110,7 @@ async def create_portal_session(
 async def billing_status(
     school_id: uuid.UUID | None = None, user: User = Depends(require_billing_admin), db: AsyncSession = Depends(get_db)
 ):
-    school = await get_school_or_404(db, resolve_school_id(user, school_id))
+    school = await get_school_or_404(db, resolve_billing_school_id(user, school_id))
     s = get_settings()
     return {
         "school_id": str(school.id),

@@ -9,7 +9,7 @@ interface SchoolRow { id: string; name: string; board: string | null; timezone: 
 interface Overview { schools_total: number; schools_active: number; schools_past_due: number; kiosks_total: number; kiosks_online: number; events_24h: number; mrr_cents: number; schools: SchoolRow[] }
 
 export default function OverviewPage() {
-  const { user, setSchoolId } = useAuth();
+  const { user } = useAuth();
   const nav = useNavigate();
   const [ov, setOv] = useState<Overview | null>(null);
   const [creating, setCreating] = useState(false);
@@ -19,10 +19,7 @@ export default function OverviewPage() {
   }, [load, user]);
   if (user?.role !== "SUPERSUDO") return <p className="text-sm text-slate-500">Platform overview is limited to SUPERSUDO accounts.</p>;
   if (!ov) return <Spinner />;
-  const open = (id: string) => {
-    setSchoolId(id);
-    nav("/");
-  };
+  const open = (id: string) => nav(`/admin/schools/${id}`);
   const statusTone = (s: string) => (s === "active" ? "bg-emerald-100 text-emerald-800" : s === "trialing" ? "bg-sky-100 text-sky-800" : s === "past_due" || s === "unpaid" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600");
   return (
     <>
@@ -44,7 +41,7 @@ export default function OverviewPage() {
                 <td className="td"><span className={`badge ${statusTone(s.subscription_status)}`}>{s.subscription_status.replace("_", " ")}</span></td>
                 <td className="td">{s.kiosks_online}/{s.kiosks_total}</td>
                 <td className="td">{s.events_24h}</td>
-                <td className="td text-right"><button className="btn-secondary py-1" onClick={() => open(s.id)}>Open school →</button></td>
+                <td className="td text-right"><button className="btn-secondary py-1" onClick={() => open(s.id)}>Billing &amp; kiosks →</button></td>
               </tr>
             ))}
           </tbody>

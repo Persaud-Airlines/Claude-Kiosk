@@ -21,6 +21,7 @@ enum class S {
     Lockdown,
     DiagTitle, DiagIp, DiagRssi, DiagFw, DiagQueue, DiagHost, DiagUid, DiagCamera, Online, Offline,
     RePair, FactoryReset, EnterPin, PinWrong, PinOffline, DeviceRevoked,
+    StartOver, StartOverTitle, StartOverBody,
     Count_
 };
 

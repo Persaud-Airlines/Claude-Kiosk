@@ -18,7 +18,9 @@ from .security import decode_token, hash_device_token, utcnow
 
 bearer = HTTPBearer(auto_error=False)
 
-ADMIN_ROLES = {Role.SUPERSUDO, Role.PRINCIPAL, Role.SCHOOL_ADMIN}
+# The platform operator (SUPERSUDO) is deliberately NOT a school role: it never reads or changes
+# school records. It has its own routes (/api/v1/admin/*) and billing status only.
+ADMIN_ROLES = {Role.PRINCIPAL, Role.SCHOOL_ADMIN}
 STAFF_ROLES = ADMIN_ROLES | {Role.TEACHER}
 
 
@@ -64,11 +66,9 @@ def is_admin(user: User) -> bool:
 
 
 def resolve_school_id(user: User, requested: uuid.UUID | None) -> uuid.UUID:
-    """Tenant isolation: non-supersudo users are hard-pinned to their own school."""
+    """Tenant isolation: school users are hard-pinned to their own school."""
     if user.role == Role.SUPERSUDO:
-        if requested is None:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "school_id is required for SUPERSUDO requests")
-        return requested
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Platform operators cannot access school records")
     if user.school_id is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "User is not assigned to a school")
     if requested is not None and requested != user.school_id:
@@ -76,9 +76,18 @@ def resolve_school_id(user: User, requested: uuid.UUID | None) -> uuid.UUID:
     return user.school_id
 
 
+def resolve_billing_school_id(user: User, requested: uuid.UUID | None) -> uuid.UUID:
+    """Billing status is the only school-level data the platform operator may see."""
+    if user.role == Role.SUPERSUDO:
+        if requested is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "school_id is required for SUPERSUDO requests")
+        return requested
+    return resolve_school_id(user, requested)
+
+
 def ensure_same_school(user: User, school_id: uuid.UUID | None) -> None:
     if user.role == Role.SUPERSUDO:
-        return
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Platform operators cannot access school records")
     if school_id is None or school_id != user.school_id:
         # 404 rather than 403 avoids leaking existence of other tenants' resources
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")

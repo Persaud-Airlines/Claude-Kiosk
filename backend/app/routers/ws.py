@@ -25,7 +25,8 @@ async def school_feed(ws: WebSocket, school_id: uuid.UUID):
         token = json.loads(first).get("token", "")
         async with get_sessionmaker()() as db:
             user = await user_from_access_token(token, db)
-        if user.role != Role.SUPERSUDO and user.school_id != school_id:
+        # Live sign-in/out data is school data: the platform operator is never allowed in.
+        if user.role == Role.SUPERSUDO or user.school_id != school_id:
             raise HTTPException(403)
     except (asyncio.TimeoutError, json.JSONDecodeError, HTTPException, WebSocketDisconnect, AttributeError):
         await ws.close(code=4401)

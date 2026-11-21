@@ -59,11 +59,15 @@ void apply_config(const KioskConfig &cfg)
     post_ui(m);
 }
 
+// Access revoked on the portal (or the device is no longer known): wipe everything and restart, so the
+// kiosk comes back as a brand-new device that must be set up and paired again.
 void handle_revoked()
 {
-    ESP_LOGW(TAG, "device token rejected (401): returning to pairing");
-    SettingsStore::get().clearPairing();
+    ESP_LOGW(TAG, "device token rejected (401): factory reset");
     post_ui(msg(Msg::Revoked));
+    vTaskDelay(pdMS_TO_TICKS(3000));  // long enough for the on-screen notice
+    SettingsStore::get().factoryReset();
+    platform_restart();
 }
 
 // ------------------------------------------------------------------------- event submit
@@ -193,6 +197,7 @@ void net_task(void *)
     auto publish_health = [&]() {
         NetSnapshot &s = net_snapshot();
         s.queueDepth = (int)OfflineQueue::get().size();
+        s.rssi = WifiManager::get().connected() ? WifiManager::get().rssi() : -127;
         s.health = !WifiManager::get().connected() ? NetHealth::NoWifi : hostUp ? NetHealth::Online : NetHealth::HostDown;
         post_ui(msg(Msg::NetStatus));
     };
@@ -279,7 +284,12 @@ void net_task(void *)
                 host.unpair();
                 SettingsStore::get().factoryReset();
                 vTaskDelay(pdMS_TO_TICKS(300));
-                esp_restart();
+                platform_restart();
+                break;
+            case Job::StartOver:  // local only: no network call, so the restart is immediate
+                SettingsStore::get().factoryReset();
+                vTaskDelay(pdMS_TO_TICKS(300));
+                platform_restart();
                 break;
             }
             delete job;

@@ -157,6 +157,10 @@ void KioskApp::start(ICameraProvider *cam)
     lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
     buildTopBar();
     content_ = box(root_, 0, UI_TOPBAR_H, LCD_H_RES, UI_WORK_H, BG);
+    // "START OVER" sits on the layer above every setup screen; shown only while setting up.
+    startOverBtn_ = button(lv_layer_top(), 634, 4, 150, 36, SURFACE_HI, tr(S::StartOver), &dt_font_16, TEXT);
+    lv_obj_add_flag(startOverBtn_, LV_OBJ_FLAG_HIDDEN);
+    onClick(startOverBtn_, [](lv_event_t *) { KioskApp::get().showStartOverConfirm(); });
 
     lv_timer_create(&KioskApp::onTick, 250, this);
     lv_timer_create(&KioskApp::onMessages, 40, this);
@@ -200,6 +204,16 @@ void KioskApp::applyPending(void *arg)
     self->state_ = next;
     lv_obj_clean(self->content_);
     self->wifiList_ = self->wifiStatus_ = self->wifiNext_ = nullptr;
+    // Splash is black; every other screen uses the normal background.
+    lv_color_t bg = C(next == KioskState::BOOT_SPLASH ? 0x000000 : BG);
+    lv_obj_set_style_bg_color(self->root_, bg, 0);
+    lv_obj_set_style_bg_color(self->content_, bg, 0);
+    if (next == KioskState::SETUP_WIZARD) {
+        lv_label_set_text(lv_obj_get_child(self->startOverBtn_, 0), tr(S::StartOver));
+        lv_obj_clear_flag(self->startOverBtn_, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(self->startOverBtn_, LV_OBJ_FLAG_HIDDEN);
+    }
     self->pairQr_ = self->pairCodeLbl_ = self->pairStatus_ = self->pairExpiry_ = nullptr;
     self->previewImg_ = self->scanStatus_ = self->manualBtn_ = self->confirmBtnRow_ = nullptr;
     self->ta1_ = self->ta2_ = self->kb_ = nullptr;
@@ -268,7 +282,7 @@ void KioskApp::buildTopBar()
     // Left: [School Name] • Room [#] — the room number is its own label so it is never truncated.
     lv_obj_t *left = lv_obj_create(topbar_);
     lv_obj_remove_style_all(left);
-    lv_obj_set_size(left, 520, UI_TOPBAR_H);
+    lv_obj_set_size(left, 470, UI_TOPBAR_H);
     lv_obj_align(left, LV_ALIGN_LEFT_MID, 16, 0);
     lv_obj_set_flex_flow(left, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(left, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -280,8 +294,12 @@ void KioskApp::buildTopBar()
     lv_obj_add_flag(tbLockdown_, LV_OBJ_FLAG_HIDDEN);
     tbRoom_ = label(left, "", &dt_font_bold_28, ACCENT);
 
-    tbDot_ = box(topbar_, 0, 0, 14, 14, STATUS_BAD, LV_RADIUS_CIRCLE);
-    lv_obj_align(tbDot_, LV_ALIGN_RIGHT_MID, -232, 0);
+    // Wi-Fi status: icon (colour = link health) and four signal bars (filled = signal strength).
+    tbWifi_ = label(topbar_, ICON_WIFI, &dt_icons_32, STATUS_BAD);
+    lv_obj_set_pos(tbWifi_, 492, 12);
+    for (int i = 0; i < 4; ++i) {
+        tbBars_[i] = box(topbar_, 532 + i * 9, 42 - (8 + i * 6), 6, 8 + i * 6, SURFACE_HI, 2);
+    }
 
     tbLocal_ = label(topbar_, "LOCAL --:--:--", &dt_font_20);
     lv_obj_align(tbLocal_, LV_ALIGN_TOP_RIGHT, -16, 5);
@@ -321,7 +339,7 @@ void KioskApp::refreshTopBar()
     // School name shrinks (with "…") to whatever the room label leaves free.
     bool ld = cfg_.lockdown;
     lv_obj_update_layout(tbRoom_);
-    lv_coord_t free_w = 520 - lv_obj_get_width(tbRoom_) - 10;
+    lv_coord_t free_w = 470 - lv_obj_get_width(tbRoom_) - 10;
     for (lv_obj_t *l : {tbSchool_, tbLockdown_}) {
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
         lv_obj_set_width(l, LV_SIZE_CONTENT);
@@ -338,10 +356,12 @@ void KioskApp::refreshTopBar()
         lv_obj_clear_flag(tbSchool_, LV_OBJ_FLAG_HIDDEN);
     }
     NetSnapshot &n = net_snapshot();
-    uint32_t dot = n.health == NetHealth::NoWifi ? STATUS_BAD
-                   : n.health == NetHealth::HostDown || n.queueDepth > 0 ? STATUS_WARN
-                                                                       : STATUS_OK;
-    lv_obj_set_style_bg_color(tbDot_, C(dot), 0);
+    uint32_t color = n.health == NetHealth::NoWifi ? STATUS_BAD
+                     : n.health == NetHealth::HostDown || n.queueDepth > 0 ? STATUS_WARN
+                                                                         : STATUS_OK;
+    int bars = n.health == NetHealth::NoWifi ? 0 : rssiBars(n.rssi);
+    lv_obj_set_style_text_color(tbWifi_, C(color), 0);
+    for (int i = 0; i < 4; ++i) lv_obj_set_style_bg_color(tbBars_[i], C(i < bars ? color : SURFACE_HI), 0);
 }
 
 void KioskApp::onTick(lv_timer_t *t)
@@ -356,10 +376,6 @@ void KioskApp::onTick(lv_timer_t *t)
     if (utc != self->lastUtc_) {
         self->lastUtc_ = utc;
         lv_label_set_text(self->tbUtc_, utc.c_str());
-    }
-    if (self->state_ == KioskState::CAMERA_SCAN && self->manualBtn_ &&
-        (lv_tick_elaps(self->scanStartedMs_) > DT_MANUAL_ENTRY_HINT_MS || self->scanHostDown_)) {
-        lv_obj_clear_flag(self->manualBtn_, LV_OBJ_FLAG_HIDDEN);
     }
     if (self->state_ == KioskState::CAMERA_SCAN && self->scanStatus_ && !self->cam_->connected()) {
         lv_label_set_text(self->scanStatus_, tr(S::CameraMissing));
@@ -448,11 +464,10 @@ void KioskApp::handle(UiMsg &m)
     case Msg::NetStatus:
         if (!onWizard && state_ != KioskState::BOOT_SPLASH) refreshTopBar();
         break;
-    case Msg::Revoked:
+    case Msg::Revoked:  // the worker factory-resets and restarts the kiosk after a short notice
         cfg_ = KioskConfig();
         closeModal();
         toast(tr(S::DeviceRevoked), RED);
-        goWizard(WizardStep::PAIRING);
         break;
     case Msg::ScanDetected:
         if (state_ != KioskState::CAMERA_SCAN) break;
@@ -514,20 +529,17 @@ void KioskApp::handle(UiMsg &m)
 void KioskApp::buildSplash()
 {
     setFullscreen(true);
-    lv_obj_t *em = createEmblem(content_);
-    lv_obj_align(em, LV_ALIGN_TOP_MID, 0, 36);
+    lv_obj_t *em = createEmblem(content_);  // logo placeholder: replace with the school-board artwork
+    lv_obj_set_pos(em, 80, 150);
 
-    lv_obj_t *t1 = label(content_, "DE-TECH-TIVE", &dt_font_bold_56);
-    lv_obj_align(t1, LV_ALIGN_TOP_MID, 0, 206);
-    lv_obj_t *t2 = label(content_, "TECHNOLOGIES Inc", &dt_font_bold_28, ACCENT);
-    lv_obj_set_style_text_letter_space(t2, 6, 0);
-    lv_obj_align(t2, LV_ALIGN_TOP_MID, 0, 272);
-    lv_obj_t *t3 = label(content_, tr(S::Subtitle), &dt_font_20, TEXT_DIM);
-    lv_obj_align(t3, LV_ALIGN_TOP_MID, 0, 318);
+    lv_obj_t *t1 = label(content_, "DE-TECH-TIVE", &dt_font_bold_56, TEXT);
+    lv_obj_set_pos(t1, 270, 170);
+    lv_obj_t *t2 = label(content_, "TECHNOLOGIES INCORPORATED", &dt_font_bold_28, ACCENT);
+    lv_obj_set_pos(t2, 272, 246);
 
     lv_obj_t *bar = lv_bar_create(content_);
     lv_obj_set_size(bar, 420, 10);
-    lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 372);
+    lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 340);
     lv_obj_set_style_bg_color(bar, C(SURFACE_HI), LV_PART_MAIN);
     lv_obj_set_style_bg_color(bar, C(ACCENT), LV_PART_INDICATOR);
     lv_bar_set_range(bar, 0, 100);
@@ -541,9 +553,9 @@ void KioskApp::buildSplash()
     lv_anim_start(&a);
 
     lv_obj_t *init = label(content_, tr(S::Initializing), &dt_font_16, TEXT_DIM);
-    lv_obj_align(init, LV_ALIGN_TOP_MID, -150, 394);
+    lv_obj_align(init, LV_ALIGN_TOP_MID, -150, 364);
     lv_obj_t *ver = label(content_, "v" DT_FIRMWARE_VERSION, &dt_font_16, TEXT_DIM);
-    lv_obj_align(ver, LV_ALIGN_TOP_MID, 180, 394);
+    lv_obj_align(ver, LV_ALIGN_TOP_MID, 180, 364);
 
     stateTimer_ = lv_timer_create(
         [](lv_timer_t *t) {
@@ -610,9 +622,9 @@ void KioskApp::buildWifi()
     lv_obj_t *t = label(content_, tr(S::WifiTitle), &dt_font_bold_40);
     lv_obj_set_pos(t, 24, 16);
 
-    lv_obj_t *gear = button(content_, 716, 12, 64, 56, SURFACE_HI, nullptr, nullptr, TEXT, ICON_GEAR, &dt_icons_32);
+    lv_obj_t *gear = button(content_, 500, 392, 80, 72, SURFACE_HI, nullptr, nullptr, TEXT, ICON_GEAR, &dt_icons_32);
     onClick(gear, [](lv_event_t *) { KioskApp::get().goWizard(WizardStep::WIFI_ADVANCED); });
-    lv_obj_t *rescan = button(content_, 520, 12, 184, 56, SURFACE_HI, nullptr, nullptr);
+    lv_obj_t *rescan = button(content_, 424, 12, 184, 56, SURFACE_HI, nullptr, nullptr);
     lv_obj_set_flex_flow(rescan, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(rescan, 10, 0);
     label(rescan, ICON_RETAKE, &dt_icons_32);
@@ -635,7 +647,7 @@ void KioskApp::buildWifi()
     lv_obj_set_flex_flow(wifiList_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_scroll_dir(wifiList_, LV_DIR_VER);
 
-    wifiStatus_ = wrapLabel(content_, "", &dt_font_20, 540, TEXT_DIM);
+    wifiStatus_ = wrapLabel(content_, "", &dt_font_20, 460, TEXT_DIM);
     lv_obj_set_pos(wifiStatus_, 24, 384);
     wifiNext_ = button(content_, 592, 392, 184, 72, PRIMARY, tr(S::Next), &dt_font_bold_28);
     lv_obj_add_state(wifiNext_, LV_STATE_DISABLED);
@@ -742,9 +754,9 @@ void KioskApp::buildWifiPassword()
 {
     backButton(content_, [](lv_event_t *) { KioskApp::get().goWizard(WizardStep::WIFI); });
     std::string title = std::string(tr(S::WifiPasswordFor)) + " \"" + pendingSsid_ + "\"";
-    lv_obj_t *t = label(content_, title.c_str(), &dt_font_bold_28);
+    lv_obj_t *t = label(content_, title.c_str(), &dt_font_24);
     lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(t, 580);
+    lv_obj_set_width(t, 420);
     lv_obj_set_pos(t, 204, 24);
     ta1_ = textArea(content_, 16, 80, 560, tr(S::WifiPassword), true);
     lv_obj_t *show = button(content_, 588, 80, 60, 60, SURFACE_HI, nullptr, nullptr, TEXT, LV_SYMBOL_EYE_OPEN, &lv_font_montserrat_24);
@@ -824,18 +836,21 @@ void KioskApp::buildPairing()
     pairQr_ = lv_qrcode_create(qrFrame, 264, C(0x000000), C(0xFFFFFF));
     lv_obj_center(pairQr_);
 
-    lv_obj_t *body = wrapLabel(content_, tr(S::PairBody), &dt_font_20, 420, TEXT_DIM);
+    lv_obj_t *body = wrapLabel(content_, tr(S::PairBody), &dt_font_20, 400, TEXT_DIM);
     lv_obj_set_pos(body, 356, 92);
     pairCodeLbl_ = label(content_, pairCode_.empty() ? "- - - -" : pairCode_.c_str(), &dt_font_code_64);
-    lv_obj_set_pos(pairCodeLbl_, 352, 200);
-    pairStatus_ = wrapLabel(content_, pairError_ ? tr(S::PairError) : tr(S::PairWaiting), &dt_font_24, 420, ACCENT);
+    lv_obj_set_pos(pairCodeLbl_, 356, 200);
+    lv_obj_set_width(pairCodeLbl_, 400);
+    lv_label_set_long_mode(pairCodeLbl_, LV_LABEL_LONG_CLIP);
+    lv_obj_set_style_text_align(pairCodeLbl_, LV_TEXT_ALIGN_CENTER, 0);
+    pairStatus_ = wrapLabel(content_, pairError_ ? tr(S::PairError) : tr(S::PairWaiting), &dt_font_24, 400, ACCENT);
     lv_obj_set_pos(pairStatus_, 356, 300);
     pairExpiry_ = label(content_, "", &dt_font_16, TEXT_DIM);
     lv_obj_set_pos(pairExpiry_, 356, 352);
 
     lv_obj_t *spinner = lv_spinner_create(content_, 1000, 60);
     lv_obj_set_size(spinner, 36, 36);
-    lv_obj_set_pos(spinner, 740, 300);
+    lv_obj_set_pos(spinner, 720, 412);
     lv_obj_set_style_arc_color(spinner, C(ACCENT), LV_PART_INDICATOR);
 
     lv_obj_t *back = button(content_, 32, 404, 220, 60, SURFACE_HI, nullptr, nullptr);
@@ -968,7 +983,6 @@ void KioskApp::buildCameraScan()
     lv_obj_align(scanStatus_, LV_ALIGN_TOP_MID, 0, 388);
 
     manualBtn_ = button(content_, 636, 290, 148, 96, SURFACE_HI, tr(S::TypeName), &dt_font_20, TEXT, ICON_KEYBOARD, &dt_icons_32);
-    lv_obj_add_flag(manualBtn_, LV_OBJ_FLAG_HIDDEN);
     onClick(manualBtn_, [](lv_event_t *) { KioskApp::get().go(KioskState::MANUAL_ENTRY); });
 
     scanStartedMs_ = ms();
@@ -1184,6 +1198,23 @@ void KioskApp::showDiagnostics()
     onClick(re, [](lv_event_t *) { KioskApp::get().showPinPad(false); });
     onClick(fr, [](lv_event_t *) { KioskApp::get().showPinPad(true); });
     onClick(cl, [](lv_event_t *) { KioskApp::get().closeModal(); });
+}
+
+void KioskApp::showStartOverConfirm()
+{
+    closeModal();
+    modal_ = box(lv_layer_top(), 0, 0, LCD_H_RES, LCD_V_RES, 0x000000);
+    lv_obj_set_style_bg_opa(modal_, LV_OPA_70, 0);
+    lv_obj_add_flag(modal_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t *p = box(modal_, 150, 110, 500, 260, SURFACE, 18);
+    lv_obj_t *t = wrapLabel(p, tr(S::StartOverTitle), &dt_font_bold_28, 452);
+    lv_obj_set_pos(t, 24, 22);
+    lv_obj_t *b = wrapLabel(p, tr(S::StartOverBody), &dt_font_20, 452, TEXT_DIM);
+    lv_obj_set_pos(b, 24, 84);
+    lv_obj_t *no = button(p, 24, 176, 210, 60, SURFACE_HI, tr(S::Cancel), &dt_font_20);
+    lv_obj_t *yes = button(p, 266, 176, 210, 60, RED, tr(S::StartOver), &dt_font_20);
+    onClick(no, [](lv_event_t *) { KioskApp::get().closeModal(); });
+    onClick(yes, [](lv_event_t *) { post_job(new JobMsg{Job::StartOver}); });
 }
 
 void KioskApp::showPinPad(bool factoryReset)

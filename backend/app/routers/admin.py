@@ -1,6 +1,8 @@
 """SUPERSUDO (board / platform) portal: global overview, MRR, school provisioning."""
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.audit import audit
 from ..core.config import get_settings
 from ..core.database import get_db
-from ..core.deps import require_supersudo
+from ..core.deps import get_school_or_404, require_supersudo
 from ..core.security import hash_password, utcnow, validate_password_strength
 from ..models import (
     Classroom,
@@ -79,6 +81,32 @@ async def overview(_: User = Depends(require_supersudo), db: AsyncSession = Depe
 @router.get("/schools", response_model=list[SchoolOut])
 async def all_schools(_: User = Depends(require_supersudo), db: AsyncSession = Depends(get_db)):
     return (await db.execute(select(School).order_by(School.name))).scalars().all()
+
+
+@router.get("/kiosks")
+async def kiosk_diagnostics(school_id: uuid.UUID, _: User = Depends(require_supersudo), db: AsyncSession = Depends(get_db)):
+    """Device health only (no students, no sign-in events): for support and diagnostics."""
+    await get_school_or_404(db, school_id)
+    devices = (
+        await db.execute(select(KioskDevice).where(KioskDevice.school_id == school_id).order_by(KioskDevice.device_uid))
+    ).scalars().all()
+    rooms = {r.id: r.room_number for r in (await db.execute(select(Classroom).where(Classroom.school_id == school_id))).scalars()}
+    return [
+        {
+            "id": str(d.id),
+            "device_uid": d.device_uid,
+            "room_number": rooms.get(d.classroom_id),
+            "pairing_status": d.pairing_status.value,
+            "online": is_online(d),
+            "firmware_version": d.firmware_version,
+            "ip_address": d.ip_address,
+            "wifi_rssi": d.wifi_rssi,
+            "offline_queue_depth": d.offline_queue_depth,
+            "last_seen_at": d.last_seen_at,
+            "paired_at": d.paired_at,
+        }
+        for d in devices
+    ]
 
 
 @router.get("/boards")

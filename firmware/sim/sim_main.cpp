@@ -171,6 +171,8 @@ UiMsg *pop_ui()
 }
 void post_job(JobMsg *j) { g_jobs.push_back(j); }
 NetSnapshot &net_snapshot() { return g_snap; }
+void platform_restart() { printf("[sim] device restart requested\n"); }
+
 
 KioskConfig demoConfig(bool lockdown)
 {
@@ -324,6 +326,9 @@ int main(int argc, char **argv)
     shot("01_boot_splash");
     run(2300);
     shot("02_wizard_welcome");
+    tap(709, 22);                 // START OVER (top-right, on every setup screen)
+    shot("02b_start_over_confirm");
+    tap(279, 316);                // CANCEL
     tap(400, 424);                // GET STARTED
     shot("03_wizard_language");
     tap(400, 260);                // Français (shows translated wizard)
@@ -346,6 +351,7 @@ int main(int argc, char **argv)
     dt::SettingsStore::get().savePairing("dtk_sim", paired->cfg);
     dt::TimeSync::setPosixTz(paired->cfg.posixTz);
     dt::net_snapshot().health = dt::NetHealth::Online;
+    dt::net_snapshot().rssi = -58;  // 4 signal bars in the top bar
     dt::post_ui(paired);
     run(300);
     shot("08_home");

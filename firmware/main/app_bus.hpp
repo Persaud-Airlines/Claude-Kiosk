@@ -29,7 +29,7 @@ struct UiMsg {
 
 enum class Job {
     ScanWifi, ConnectWifi, CheckHost, StartPairing, StopPairing,
-    SubmitEvent, VerifyPin, RePair, FactoryReset,
+    SubmitEvent, VerifyPin, RePair, FactoryReset, StartOver,
 };
 
 struct JobMsg {
@@ -49,8 +49,12 @@ void post_job(JobMsg *j);  // takes ownership
 struct NetSnapshot {
     volatile NetHealth health = NetHealth::NoWifi;
     volatile int queueDepth = 0;
+    volatile int rssi = -127;  // Wi-Fi signal (dBm) for the top-bar indicator
     volatile bool cameraConnected = false;
 };
 NetSnapshot &net_snapshot();
+
+/** Restart the device (esp_restart on hardware; no-op in the desktop simulator). */
+void platform_restart();
 
 }  // namespace dt

@@ -86,6 +86,11 @@ const char *const T[(int)S::Count_][3] = {
     /* PinWrong */          {"Incorrect PIN", "PIN incorrect", "PIN incorrecto"},
     /* PinOffline */        {"Server offline: PIN cannot be verified", "Serveur hors ligne : PIN non vérifiable", "Servidor sin conexión: no se puede verificar el PIN"},
     /* DeviceRevoked */     {"This kiosk was unpaired by an administrator", "Cette borne a été dissociée par un administrateur", "Un administrador desvinculó este quiosco"},
+    /* StartOver */         {"START OVER", "RECOMMENCER", "REINICIAR"},
+    /* StartOverTitle */    {"Start setup over?", "Recommencer la configuration ?", "¿Reiniciar la configuración?"},
+    /* StartOverBody */     {"This clears this kiosk's language, Wi-Fi and pairing, then restarts setup.",
+                             "Cela efface la langue, le Wi-Fi et l'association de cette borne, puis relance la configuration.",
+                             "Esto borra el idioma, el Wi-Fi y la vinculación de este quiosco, y reinicia la configuración."},
 };
 // clang-format on
 

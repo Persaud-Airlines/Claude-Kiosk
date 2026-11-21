@@ -11,6 +11,7 @@
 #include "camera_provider.hpp"
 #include "config.h"
 #include "esp_heap_caps.h"
+#include "esp_system.h"
 #include "esp_log.h"
 #include "kiosk_app.hpp"
 #include "lvgl_port.h"
@@ -21,6 +22,10 @@
 #include "workers.hpp"
 
 static const char *TAG = "main";
+
+namespace dt {
+void platform_restart() { esp_restart(); }
+}  // namespace dt
 
 extern "C" void app_main(void)
 {
