@@ -18,6 +18,7 @@ namespace dt {
 using namespace theme;
 namespace {
 const char *TAG = "ui";
+constexpr lv_coord_t KB_H = 240;  // on-screen keyboard height (4 rows)
 
 lv_color_t C(uint32_t hex) { return lv_color_hex(hex); }
 
@@ -727,11 +728,12 @@ static lv_obj_t *textArea(lv_obj_t *parent, lv_coord_t x, lv_coord_t y, lv_coord
     return ta;
 }
 
-static lv_obj_t *keyboard(lv_obj_t *parent, lv_coord_t y)
+// Keyboards are pinned to the bottom edge with a fixed height so all four rows stay on screen.
+static lv_obj_t *keyboard(lv_obj_t *parent, lv_coord_t /*unused*/)
 {
     lv_obj_t *kb = lv_keyboard_create(parent);
-    lv_obj_set_pos(kb, 0, y);
-    lv_obj_set_size(kb, LCD_H_RES, LCD_V_RES - y);
+    lv_obj_set_size(kb, LCD_H_RES, KB_H);
+    lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_text_font(kb, &lv_font_montserrat_24, LV_PART_ITEMS);  // keyboard uses LV_SYMBOL_* glyphs
     return kb;
 }
@@ -1008,8 +1010,8 @@ void KioskApp::buildManualEntry()
         lv_textarea_set_accepted_chars(ta, nullptr);
     }
     kb_ = lv_keyboard_create(content_);
-    lv_obj_set_pos(kb_, 0, 146);
-    lv_obj_set_size(kb_, LCD_H_RES, UI_WORK_H - 146);
+    lv_obj_set_size(kb_, LCD_H_RES, KB_H);
+    lv_obj_align(kb_, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_style_text_font(kb_, &lv_font_montserrat_24, LV_PART_ITEMS);
     lv_keyboard_set_mode(kb_, LV_KEYBOARD_MODE_TEXT_UPPER);
     attachKeyboard(kb_, ta1_);
