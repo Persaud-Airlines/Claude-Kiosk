@@ -26,3 +26,4 @@ firmware/main/secrets.h
 build-sim/
 backend/backups/
 backend/logs/
+frontend/*.tsbuildinfo
